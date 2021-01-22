@@ -5,7 +5,7 @@ This repository serves as a source for the software, CAD documents and sample de
 
 
 ## Contents
-GUI directory: contains a Python script, with two support Python files, and an Arduino program to perform communication between the Arduino and the computer.
+GUI: contains a Python script, with two support Python files, and an Arduino program to perform communication between the Arduino and the computer.
 * arduinoGUI.py
 * arduinoComms.py
 * arduinoCheckForData.py
@@ -19,4 +19,4 @@ Fabric_Positioner: contains an Arduino program with a defined class FabricPositi
 Design_files: sample design files which users can use to test out embroidery.
 * Circle.csv
 
-
+CAD (to-do): CAD files for the foot design, embroidery hoop, fabric-positioning system
