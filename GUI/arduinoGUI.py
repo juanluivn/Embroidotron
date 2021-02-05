@@ -136,7 +136,8 @@ def btnA(btn, progressbar, masterframe):
 			waitForArduino("MOVED")
 			motor_moves += 1
 			print("\tMotors moved " + motor_moves + "time(s)")
-
+#send a -1 when we've sent all points
+#In arduino code need to add logic when we extract x_, y_ and move point_add
 
 # ============================ Run ============================
 def runProgram():
