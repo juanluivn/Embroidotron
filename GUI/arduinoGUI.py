@@ -18,6 +18,7 @@ tkArd.title("Embroidotron 3000")
 # Next line must come after  tkArd = Tk() so that a StringVar() can be created in checkForData
 import arduinoCheckForData as cD	# So we can refer its variables
 
+# ============================ Exit ============================
 def exit_handler():
     print("\nMy application is ending!")
     cD.stopListening()
@@ -25,8 +26,7 @@ def exit_handler():
 
 atexit.register(exit_handler)
 
-
-# ---------------- Setup Comm and GUI ----------------
+# ============================ Setup Comm, GUI ============================
 def setupView():
 	global masterframe
 	masterframe = Frame(bg = "yellow")
@@ -37,24 +37,22 @@ def selectPort():
 	global masterframe, radioVar
 	for child in masterframe.winfo_children():
 		child.destroy()
-	radioVar = StringVar()
-
-	lst = listSerialPorts()
 	
-	l1= Label(masterframe, width = 5, height = 2, bg = "yellow")
+	radioVar = StringVar()
+	lst = listSerialPorts()
+	l1 = Label(masterframe, width = 5, height = 2, bg = "yellow")
 	l1.pack()
 
 	if len(lst) > 0:
 		for n in lst:
 			r1 = Radiobutton(masterframe, text=n, variable=radioVar, value=n, bg = "yellow")
 			r1.config(command = radioPress)
-			r1.pack(anchor=W)
+			r1.pack(anchor = W)
 	else:
 		l2 = Label(masterframe, text = "No Serial Port Found")
 		l2.pack()
 
 def radioPress():
-	global radioVar
 	setupSerial(radioVar.get())
 	cD.listenForData()
 	mainScreen()
@@ -92,59 +90,61 @@ def btnA(btn, progressbar, masterframe):
 		ledAstatus = 0
 	
 	start_1 = time.time()
-	for i in range(count, numPoints + 1):
+	
+	safety = 0
+	points_sent = 0
+	motor_moves = 0
+	while(True):
+		if(safety > 1000):
+			print("Breaking for safety")
+		safety += 1
 
 		textvariable = cD.displayVal
-		print("\tNumber of points so far:", textvariable)
-		# text variable is a string
-		try:
-			int(textvariable)
-			# While loop here that iterates until textvariable is less than
-			# MAX_BUFFER_LENGTH - 1. This should allow getting rid of time.sleep
-#			print("Now it's an int")
-		except:
-#			print("Not an int yet")
-			print("")
+		if(textvariable == "NOT_FULL"):
+			# Buffer is not full, can receive another point
+			# If haven't sent all points, send point to Arduino
+			if(count < numPoints):
+				start = time.time()
+				valToArduinoPoints(count)
+				time.sleep(0.2)
+				end2 = time.time()
 
-		start = time.time()
-		valToArduinoPoints(count)
+				# Confirmation that the Arduino received the last point sent
+				waitForArduino("RECEIVED")
+				points_sent += 1
+				print("\tNumber of points sent so far:", points_sent)
+				# Increase index to next point
+				count += 1
+			# If we've sent all the points, don't do anything
+			else:
+				print("\tAll points have been sent")
 
-		time.sleep(0.2)
-		end2 = time.time()
-		if i == numPoints:
-			print("\t\tTime for entire design: ",end2 - start_1)
-			print("The End")
-			break
-		else:
-			print("\t\tTime taken: ",end2 - start,"\n")
-		count += 1
+			if(count == numPoints):
+				# Wait to receive "DONE" message from Arduino
+#				waitForArduino("DONE")
+				print("\t\tTime for entire design: ",time.time() - start_1)
+				print("The End")
+				break
+			else:
+				print("\t\tTime taken: ",end2 - start,"\n")
+		elif(textvariable == "FULL"):
+			# Buffer is full, hold off on sending point
+			print("\tBuffer is full, waiting until motors move to free up space")
+			# Won't be able to send until buffer opens up one space
+			# Therefore, wait for motors to move
+			# Motors moved, buffer ready to receive another point
+			waitForArduino("MOVED")
+			motor_moves += 1
+			print("\tMotors moved " + motor_moves + "time(s)")
 
-def btnB(btn):
-	global ledAstatus, ledBstatus, count
-	
-	if ledBstatus == 0:
-		ledBstatus = 1
-		btn.config(fg="red", relief=SUNKEN)
-	else:
-		ledBstatus = 0
-		btn.config(fg="black")
-	for i in range(count,):
-		print()
-	valToArduinoLED(ledAstatus, ledBstatus)
-	valToArduinoPoints(count)
-	count += 1
 
-def bar(progress, root, count):
-    progress['value'] = count * 5
-    root.update_idletasks()
-
-# ---------------- Run program ----------------
+# ============================ Run ============================
 def runProgram():
 	global numPoints
 	numPoints = loadDesign()
 	print("This design consists of", numPoints, "points")
 	tkArd.mainloop()
 
-# ---------------- Main ----------------
+# ============================ Main ============================
 setupView()
 runProgram()

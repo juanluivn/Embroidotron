@@ -12,9 +12,8 @@
 #define MAX_BUFFER_LENGTH 10
 
 ////////////////////// GUI Interface ////////////////////////////
-const byte numLEDs = 2;
-byte ledPin[numLEDs] = {7, 4};
-byte ledStatus[numLEDs] = {0, 0};
+const int ledPin = 7;
+const int buttonPin = 4;
 
 const byte buffSize = 40;
 char inputBuffer[buffSize];
@@ -22,7 +21,6 @@ const char startMarker = '<';
 const char endMarker = '>';
 byte bytesRecvd = 0;
 boolean readInProgress = false;
-boolean newDataFromPC = false;
 
 float buffer_x[MAX_BUFFER_LENGTH];
 float buffer_y[MAX_BUFFER_LENGTH];
@@ -32,13 +30,14 @@ int x_point_extract = 0;
 int y_point_extract = 0;
 /////////////////////////////////////////////////////////////////
 
-int state = waiting_notMoved;
+int state = Wait;
 int i_needleDown = 1;
 float next_x = 0;
 float next_y = 0;
 float x_ = 0;
 float y_ = 0;
-int needleFlag = 0;
+volatile int needleFlag = 0;    // variable for reading needle status (button for now)
+bool all_points = false;        // variable to indicate when we've stitched all points
 
 float r1 = 15;
 float r2 = 15;
@@ -52,7 +51,6 @@ void getDataFromPC() {
     char x = Serial.read();
     if (x == endMarker) {
       readInProgress = false;
-      newDataFromPC = true;
       inputBuffer[bytesRecvd] = 0;
       parseData();
     }
@@ -84,72 +82,110 @@ void parseData() {
   next_x = x_;
   next_y = y_;
 
-
-  sendToPC();
+  sendToPC(3);          // send to PC that the points were received
 }
 
-void sendToPC() {
+void sendToPC(int msg) {             
   Serial.print("<");
-  Serial.print(x_point_add);
+  if(msg == 1){
+    Serial.print("FULL");
+  }
+  else if(msg == 2){
+    Serial.print("NOT_FULL");
+  }
+  else if(msg == 3){
+    Serial.print("RECEIVED");
+  }
+  else if(msg == 4){
+    Serial.print("MOVED");
+  }
+  else if(msg == 5){
+    Serial.print("DONE");
+  }
+  else if(msg == 6){
+    Serial.print("Estop");
+  }
   Serial.print(">");
 }
-/////////////////////////////////////////////////////////////////
 
-void setup() {
-  Serial.begin(115200);
-
-  // flash LEDs so we know we are alive
-  for (byte n = 0; n < numLEDs; n++) {
-     pinMode(ledPin[n], OUTPUT);
-     digitalWrite(ledPin[n], HIGH);
-  }
-  delay(100); // delay() is OK in setup as it only happens once
-  
-  for (byte n = 0; n < numLEDs; n++) {
-     digitalWrite(ledPin[n], LOW);
-  }
-  // tell the PC we are ready
-  Serial.println("<Arduino is ready>");
-  delay(1);
+void needleFlagButton() {
+  needleFlag = UP;
 }
 
+/////////////////////////////////////////////////////////////////
+/////////////////////// SETUP ///////////////////////////////////
+void setup() {
+  Serial.begin(2400);
+
+  // Make the pushbutton's pin an input:
+  pinMode(buttonPin, INPUT);
+  // Attach an interrupt to button
+  attachInterrupt(0, needleFlagButton, CHANGE); // 0 is for pin 2
+
+  // flash LEDs so we know we are alive
+  pinMode(ledPin, OUTPUT);
+  digitalWrite(ledPin, HIGH);
+  delay(100); // delay() is OK in setup as it only happens once
+  digitalWrite(ledPin, LOW);
+  
+  // Tell PC we're ready
+  Serial.println("<Arduino is ready>");
+}
+
+sendToPC("NOT_FULL")
+getDataFromPC()
+sendToPC("RECEIVED")
+sendToPC("NOT_FULL")
+getDataFromPC()
+...
+getDataFromPC()
+sendToPC("RECEIVED")
+sendToPC("FULL")
+sendToPC("MOVED")
+
+
+// MOVE WITH COMMUNICATION INDEPENDENTLY, USE INTERRUPTS FROM INCOMING needleFlag SIGNAL  <--
+
+// NEED TO ADD WAY OF PARSING DATA NOT ONLY WHEN WE RECEIVE A POINT FROM PC               <--
+
+/////////////////////// LOOP ///////////////////////////////////
 void loop() {
-  if(i_needleDown < 21){
+// all_points --> if buffer is empty, set to True                                         <--
+  if(){                                                                                   <--
+    all_points = true;
+    sendToPC(5);              // send to PC "DONE" to indicate design has finished
+  }
+  if(!all_points){
     switch (state) {
-      case waiting_notMoved:
-        // if the needle position is up switch to case 2
-        if (1){//needleFlag == UP) {
-          getDataFromPC();
-//          sendToPC();
-
-//          next_x = buffer_x[x_point_extract ++];
-//          next_y = buffer_y[y_point_extract ++];
-//          x_point_extract = x_point_extract % MAX_BUFFER_LENGTH;
-//          y_point_extract = y_point_extract % MAX_BUFFER_LENGTH;
-
-          state = needleUp_moving; // realizing that maybe this could be merged with the next state
+      case Wait:
+        if(all_points){
+          state = Done;       // move to Done
+        }
+        if(needleFlag == UP){
+          state = Stitch;     // move to Stitch
         }
         break;
-      case needleUp_moving:
-        if (!fabPos.isMoving()) {
-          fabPos.move_To(next_x, next_y);  // Moves the steppers to position X & Y via simple inverse kinematics
+      case Stitch:
+        if(needleFlag == DOWN){
+          state = Estop;      // move to Estop
         }
-        if (fabPos.isFinishedMoving()) {
-          state = waiting_haveMoved;
+        if(fabPos.isFinishedMoving()){
+          state = Wait;       // move to Wait
+          needleFlag = DOWN;  // set needleFlag to DOWN
         }
         break;
-      case waiting_haveMoved:
-        if (1){//needleFlag == DOWN) {
-          state = waiting_notMoved;
-        }
+      case Done:
+        sendToPC(5);          // send to PC that we're done
+        break;
+      case Estop:
+        sendToPC(6);          // send to PC that the system had to do an emergency stop
         break;
     }
   }
   else{
-    // Embroidery is done
-    digitalWrite(ledPin[0], HIGH);
+    digitalWrite(ledPin, HIGH);
     delay(1000);
-    digitalWrite(ledPin[0], LOW);
+    digitalWrite(ledPin, LOW);
     delay(200);
   }
 }

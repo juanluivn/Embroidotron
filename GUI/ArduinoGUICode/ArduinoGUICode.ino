@@ -12,7 +12,7 @@ boolean newDataFromPC = false;
 unsigned long curMillis;
 
 void setup() {
-  Serial.begin(115200);
+  Serial.begin(2400); //   Serial.begin(115200);
   
   // flash LEDs so we know we are alive
   for (byte n = 0; n < numLEDs; n++) {

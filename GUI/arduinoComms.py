@@ -6,17 +6,12 @@ import pandas as pd
 from tkinter import *
 from tkinter.ttk import Progressbar
 
-
 # global variables for module
 startMarker = 60
 endMarker = 62
 designSize = 0
 
-def valToArduinoLED(ledA, ledB):
-	sendStr = "%s,%s" %(ledA, ledB)
-	print("SENDSTR %s" %( sendStr))
-	sendToArduino(sendStr)
-
+# ============================ Serial functions ============================
 def listSerialPorts():
 	# http://stackoverflow.com/questions/12090503/listing-available-com-ports-with-python
 	
@@ -50,19 +45,17 @@ def listSerialPorts():
             pass
     return result
 
-#========================
 def setupSerial(serPort):
 	global  ser
 	
 	# NOTE the user must ensure that the serial port and baudrate are correct
 	#~ serPort = "/dev/ttyS81"
-	baudRate = 115200#9600
+	baudRate = 2400#115200#9600
 	ser = serial.Serial(serPort, baudRate)
 	print("Serial port " + serPort + " opened  Baudrate " + str(baudRate))
 
-	waitForArduino()
+	waitForArduino("Arduino is ready")
 
-#========================
 def closeSerial():
 	global ser
 	if 'ser' in globals():
@@ -71,7 +64,7 @@ def closeSerial():
 	else:
 		print("Serial Port Not Opened")
 
-#========================
+# ============================ Arduino functions ============================
 def sendToArduino(sendStr):
 	global startMarker, endMarker, ser
 	
@@ -79,7 +72,6 @@ def sendToArduino(sendStr):
 	ser.write(str.encode(sendStr))
 	ser.write(str.encode(chr(endMarker)))
 
-#===========================
 def recvFromArduino(timeOut): # timeout in seconds eg 1.5
 	global startMarker, endMarker, ser
   
@@ -108,18 +100,14 @@ def recvFromArduino(timeOut): # timeout in seconds eg 1.5
 								 #   when no data is received
 	return(dataBuf)
 
-#============================
-def waitForArduino():
-   # wait until the Arduino sends 'Arduino Ready' - allows time for Arduino reset
-   # it also ensures that any bytes left over from a previous message are discarded
-   
-	print("Waiting for Arduino to reset")
+def waitForArduino(flag):
+	# Wait for Arduino to send flag - allows time for Arduino to respond
+	# Also ensures that any bytes left over from a previous message are discarded
+	print("Waiting for Arduino")
     
 	msg = ""
-	while msg.find("Arduino is ready") == -1:
-
-		msg = recvFromArduino(10)
-
+	while msg.find(flag) == -1:
+		msg = recvFromArduino(10)	# 10 second timeout
 		print(msg)
 		print()
 
@@ -138,14 +126,8 @@ def valToArduinoPoints(count):
 		x = df.iloc[count,0]
 		y = df.iloc[count,1]
 		sendStr = "%f,%f" %(x, y)
-		print("SENDSTR %s" %( sendStr))
+		print("Sending to Arduino: %s" %( sendStr))
 		sendToArduino(sendStr)
 	else:
 		print("\nDesign is complete!")
-
-#def bar(progress, root, count):
-#    progress['value'] = count * 5
-#    root.update_idletasks()
-# ================================================================================
-
 
