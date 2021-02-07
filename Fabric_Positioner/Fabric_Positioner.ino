@@ -14,7 +14,7 @@
 
 ////////////////////// GUI Interface ////////////////////////////
 const int ledPin = 7;
-const int buttonPin = 4;
+const int buttonPin = 2;
 
 const byte buffSize = 40;
 char inputBuffer[buffSize];     // can use a queue for this buffer (FIFO)
@@ -33,9 +33,12 @@ int state = Wait;
 int i_needleDown = 0;
 float x_ = 0;
 float y_ = 0;
+float next_x = 0;
+float next_y = 0;
 volatile int needleFlag = 0;    // variable for reading needle status (button for now)
 bool all_points = false;        // variable to indicate when we've stitched all points
 bool E_Stop = false;
+bool start = true;
 
 float r1 = 15;
 float r2 = 15;
@@ -129,26 +132,28 @@ void setup() {
   
   // Tell PC we're ready
   Serial.println("<Arduino is ready>");
-
-  // Receive one point initially
-  getDataFromPC();
-  sendToPC(3);              // send to PC "RECEIVED" to indicate we've received the point (x_,y_)
 }
 
 /////////////////////// LOOP ///////////////////////////////////
 void loop() {
   if(!E_Stop){
-    if(noMorePoints && (point_add == point_extract)){  // No more points to move, i.e. design is done
+    if(start){
+      // Receive one point initially
+      getDataFromPC();
+      sendToPC(3);              // send to PC "RECEIVED" to indicate we've received the point (x_,y_)
+      start = false;
+    }
+    if(noMorePoints && (point_add == point_extract)){       // No more points to move, i.e. design is done
       all_points = true;
       sendToPC(5);              // send to PC "DONE" to indicate design has finished
     }
-    else if((point_add != point_extract) && !noMorePoints){
+    else if((point_add != point_extract) && !noMorePoints){ // Haven't received all, points and design not done
       sendToPC(2);              // send to PC "NOT_FULL" to indicate we can receive a point
       delay(10);
       getDataFromPC();
       sendToPC(3);              // send to PC "RECEIVED" to indicate we've received the point (x_,y_)
     }
-    else if(point_add == point_extract){
+    else if(point_add == point_extract){                    // Buffer is full and can't receive more points
       sendToPC(1);              // send to PC "FULL" to indicate buffer is full and hold off on sending
     }
     if(!all_points){
@@ -159,11 +164,19 @@ void loop() {
           }
           if(needleFlag == UP){
             state = Stitch;     // move to Stitch
+            
+            // Update next_x and next_y points to move the motors in Stitch state
+            next_x = buffer_points[point_extract ++];
+            next_y = buffer_points[point_extract ++];
+            point_extract = point_extract % MAX_BUFFER_LENGTH;
           }
           break;
         case Stitch:
           if(needleFlag == DOWN){
             state = Estop;      // move to Estop
+          }
+          if (!fabPos.isMoving()) {
+            fabPos.move_To(next_x, next_y);
           }
           if(fabPos.isFinishedMoving()){
             state = Wait;       // move to Wait
@@ -182,10 +195,12 @@ void loop() {
       }
     }
     else{
-      digitalWrite(ledPin, HIGH);
-      delay(1000);
-      digitalWrite(ledPin, LOW);
-      delay(200);
+      while(true){
+        digitalWrite(ledPin, HIGH);
+        delay(1000);
+        digitalWrite(ledPin, LOW);
+        delay(200);
+      }
     }
   }
 }

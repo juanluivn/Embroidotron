@@ -103,13 +103,16 @@ def recvFromArduino(timeOut): # timeout in seconds eg 1.5
 def waitForArduino(flag):
 	# Wait for Arduino to send flag - allows time for Arduino to respond
 	# Also ensures that any bytes left over from a previous message are discarded
-	print("Waiting for Arduino")
+	print("Waiting for Arduino to send " + flag)
     
 	msg = ""
+	once = True;
 	while msg.find(flag) == -1:
 		msg = recvFromArduino(10)	# 10 second timeout
-		print(msg)
-		print()
+		time.sleep(0.01)
+		if(once):
+			print(msg)
+			once = False;
 
 # ============================ Embroidotron functions ============================
 def loadDesign():

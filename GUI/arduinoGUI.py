@@ -15,7 +15,7 @@ tkArd.minsize(width=320, height=170)
 tkArd.config(bg = 'yellow')
 tkArd.title("Embroidotron 3000")
 
-# Next line must come after  tkArd = Tk() so that a StringVar() can be created in checkForData
+# Next line must come after tkArd = Tk() so that a StringVar() can be created in checkForData
 import arduinoCheckForData as cD	# So we can refer its variables
 
 # ============================ Exit ============================
@@ -95,15 +95,18 @@ def btnA(btn, progressbar, masterframe):
 	points_sent = 0
 	motor_moves = 0
 	while(True):
-		if(safety > 1000):
+		time.sleep(0.1)
+		if(safety > 10000):
 			print("Breaking for safety")
+			break
 		safety += 1
-
+		
 		textvariable = cD.displayVal
-		if(textvariable == "NOT_FULL"):
-			# Buffer is not full, can receive another point
+		if(textvariable == "NOT_FULL"): # Buffer is not full, can receive another point
+			print("Buffer is not full")
 			# If haven't sent all points, send point to Arduino
 			if(count < numPoints):
+				print("count is less than numPoints")
 				start = time.time()
 				valToArduinoPoints(count)
 				time.sleep(0.2)
@@ -115,29 +118,40 @@ def btnA(btn, progressbar, masterframe):
 				print("\tNumber of points sent so far:", points_sent)
 				# Increase index to next point
 				count += 1
+			
+			# If we've reached end of points, send -1
+			elif(count == numPoints):
+				print("count is same as numPoints")
+				start = time.time()
+				valToArduinoPoints(-1)
+				time.sleep(0.2)
+				end2 = time.time()
+
+				# Confirmation that the Arduino received the -1
+				waitForArduino("RECEIVED")
+				print("\tSent the -1 indicator")
+				count += 1
+
 			# If we've sent all the points, don't do anything
 			else:
 				print("\tAll points have been sent")
 
 			if(count == numPoints):
+				print("In this last loop")
 				# Wait to receive "DONE" message from Arduino
-#				waitForArduino("DONE")
+				waitForArduino("DONE")
 				print("\t\tTime for entire design: ",time.time() - start_1)
 				print("The End")
 				break
 			else:
 				print("\t\tTime taken: ",end2 - start,"\n")
-		elif(textvariable == "FULL"):
-			# Buffer is full, hold off on sending point
+		elif(textvariable == "FULL"): # Buffer is full, hold off on sending point
 			print("\tBuffer is full, waiting until motors move to free up space")
 			# Won't be able to send until buffer opens up one space
-			# Therefore, wait for motors to move
 			# Motors moved, buffer ready to receive another point
 			waitForArduino("MOVED")
 			motor_moves += 1
-			print("\tMotors moved " + motor_moves + "time(s)")
-#send a -1 when we've sent all points
-#In arduino code need to add logic when we extract x_, y_ and move point_add
+			print("\tMotors moved " + str(motor_moves) + " time(s)")
 
 # ============================ Run ============================
 def runProgram():
