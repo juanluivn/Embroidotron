@@ -1,206 +1,203 @@
-// Include the AccelStepper library:
+
+const byte numChars = 10;
+char receivedCharsX[numChars];
+char receivedCharsY[numChars];
+boolean readingX = true;
+boolean newData = false;
+boolean allPoints = false;
+
+////////////////         ---Buffer---   ////////////////////////
+#define ARRAY_SIZE(array) ((sizeof(array))/(sizeof(array[0])))
+const int BUFFER_LENGTH = 10;
+int buffer_points[BUFFER_LENGTH];
+int points_a = 0;   // add
+int points_e = 0;   // extract
+int x = 0;
+int y = 0;
+bool FULL = false;
+////////////////         ---Buffer---   ////////////////////////
+////////////////           ---LED---    ////////////////////////
+const int ledPin = 6;         // Y Dir
+////////////////           ---LED---    ////////////////////////
+////////////////  ---Needle Flag Interrupt---  /////////////////
+const int buttonPin = 3;      // Y Step
+volatile int needleFlag = 0;  // UP is 1, DOWN is 0
+////////////////  ---Needle Flag Interrupt---  /////////////////
+////////////////         ---Motors---   ////////////////////////
 #include <AccelStepper.h>
-#include "FabricPositioner.h"
+#include <MultiStepper.h>
+#define xStepPin 2
+#define xDirPin 5
+#define yStepPin 4            // Really Z Step
+#define yDirPin 7             // Really Z Dir
+#define MotorEnable 8
+#define motorInterfaceType 1
+AccelStepper stepper1;
+AccelStepper stepper2;
+MultiStepper steppers;
+long positions[2] = {0, 0};
+////////////////         ---Motors---   ////////////////////////
 
-// Define states
-#define Wait 1
-#define Stitch 2
-#define Done 3
-#define Estop 4
-#define UP 1
-#define DOWN 0
-
-#define MAX_BUFFER_LENGTH 10
-
-////////////////////// GUI Interface ////////////////////////////
-const int ledPin = 7;
-const int buttonPin = 2;
-
-const byte buffSize = 40;
-char inputBuffer[buffSize];     // can use a queue for this buffer (FIFO)
-const char startMarker = '<';
-const char endMarker = '>';
-byte bytesRecvd = 0;
-boolean readInProgress = false;
-boolean noMorePoints = false;
-
-float buffer_points[MAX_BUFFER_LENGTH];
-int point_add = 0;
-int point_extract = 0;
-/////////////////////////////////////////////////////////////////
-
-int state = Wait;
-int i_needleDown = 0;
-float x_ = 0;
-float y_ = 0;
-float next_x = 0;
-float next_y = 0;
-volatile int needleFlag = 0;    // variable for reading needle status (button for now)
-bool all_points = false;        // variable to indicate when we've stitched all points
-bool E_Stop = false;
-bool start = true;
-
-float r1 = 15;
-float r2 = 15;
-
-FabricPositioner fabPos = FabricPositioner(r1, r2);
-
-////////////////////// GUI Interface ////////////////////////////
-void getDataFromPC() {
-  // Receive data from PC and save it into inputBuffer
-  if(Serial.available() > 0) {
-    char x = Serial.read();
-    if(x == endMarker) {
-      readInProgress = false;
-      inputBuffer[bytesRecvd] = 0;
-      parseData();
-    }
-    if(readInProgress) {
-      inputBuffer[bytesRecvd ++] = x;
-      if(bytesRecvd == buffSize) {
-        bytesRecvd = buffSize - 1;
-      }
-    }
-    if(x == startMarker) {
-      bytesRecvd = 0; 
-      readInProgress = true;
-    }
-  }
-}
-
-void parseData() {
-  char* strtokIndx; // this is used by strtok() as an index
-  strtokIndx = strtok(inputBuffer,","); // get the first part
-  x_ = atof(strtokIndx);
-  strtokIndx = strtok(NULL, ",");       // this continues where the previous call left off
-  y_ = atof(strtokIndx);
-
-  // Add received x and y points to the buffer
-  buffer_points[point_add ++] = x_;
-  buffer_points[point_add ++] = y_;
-
-  if(x_ == -1){   // PC sends a -1 when we've covered all the points
-    noMorePoints = true;
-    point_add = point_add - 2;    // return point_add back two spaces so that it'll indicate full buffer
-  }
-
-  point_add = point_add % MAX_BUFFER_LENGTH;
-} 
-
-void sendToPC(int msg) {             // can use a map in this case (need to look into using library)
-  Serial.print("<");
-  if(msg == 1){
-    Serial.print("FULL");
-  }
-  else if(msg == 2){
-    Serial.print("NOT_FULL");
-  }
-  else if(msg == 3){
-    Serial.print("RECEIVED");
-  }
-  else if(msg == 4){
-    Serial.print("MOVED");
-  }
-  else if(msg == 5){
-    Serial.print("DONE");
-  }
-  else if(msg == 6){
-    Serial.print("Estop");
-  }
-  Serial.print(">");
-}
 
 void needleFlagButton() {
-  needleFlag = UP;
+    static unsigned long last_interrupt_time = 0;
+    unsigned long interrupt_time = millis();
+    if (interrupt_time - last_interrupt_time > 50)   // 200 works for button; may be different for Nano
+    {
+        needleFlag = 1;
+    }
+    last_interrupt_time = interrupt_time;
 }
 
-/////////////////////////////////////////////////////////////////
-/////////////////////// SETUP ///////////////////////////////////
 void setup() {
-  Serial.begin(2400);
+    Serial.begin(115200);
 
-  // Make the pushbutton's pin an input:
-  pinMode(buttonPin, INPUT);
-  // Attach an interrupt to button
-  attachInterrupt(0, needleFlagButton, CHANGE); // 0 is for pin 2
+    //    LED Interrupt
+    pinMode(ledPin, OUTPUT);
+    digitalWrite(ledPin, LOW);
 
-  // flash LEDs so we know we are alive
-  pinMode(ledPin, OUTPUT);
-  digitalWrite(ledPin, HIGH);
-  delay(100); // delay() is OK in setup as it only happens once
-  digitalWrite(ledPin, LOW);
-  
-  // Tell PC we're ready
-  Serial.println("<Arduino is ready>");
+    //    Button Interrupt
+    pinMode(buttonPin, INPUT);
+    attachInterrupt(1, needleFlagButton, RISING); // 0 is for pin 2, 1 is for pin 3
+    
+    //    Motors
+    stepper1 = AccelStepper(motorInterfaceType, xStepPin, xDirPin);
+    stepper2 = AccelStepper(motorInterfaceType, yStepPin, yDirPin);
+    stepper1.setMaxSpeed(100);//800);
+    stepper2.setMaxSpeed(100);//800);
+    steppers.addStepper(stepper1);
+    steppers.addStepper(stepper2);
+        
+    Serial.println("<Arduino is ready>");
 }
 
-/////////////////////// LOOP ///////////////////////////////////
 void loop() {
-  if(!E_Stop){
-    if(start){
-      // Receive one point initially
-      getDataFromPC();
-      sendToPC(3);              // send to PC "RECEIVED" to indicate we've received the point (x_,y_)
-      start = false;
-    }
-    if(noMorePoints && (point_add == point_extract)){       // No more points to move, i.e. design is done
-      all_points = true;
-      sendToPC(5);              // send to PC "DONE" to indicate design has finished
-    }
-    else if((point_add != point_extract) && !noMorePoints){ // Haven't received all, points and design not done
-      sendToPC(2);              // send to PC "NOT_FULL" to indicate we can receive a point
-      delay(10);
-      getDataFromPC();
-      sendToPC(3);              // send to PC "RECEIVED" to indicate we've received the point (x_,y_)
-    }
-    else if(point_add == point_extract){                    // Buffer is full and can't receive more points
-      sendToPC(1);              // send to PC "FULL" to indicate buffer is full and hold off on sending
-    }
-    if(!all_points){
-      switch (state) {
-        case Wait:
-          if(all_points){
-            state = Done;       // move to Done
-          }
-          if(needleFlag == UP){
-            state = Stitch;     // move to Stitch
-            
-            // Update next_x and next_y points to move the motors in Stitch state
-            next_x = buffer_points[point_extract ++];
-            next_y = buffer_points[point_extract ++];
-            point_extract = point_extract % MAX_BUFFER_LENGTH;
-          }
-          break;
-        case Stitch:
-          if(needleFlag == DOWN){
-            state = Estop;      // move to Estop
-          }
-          if (!fabPos.isMoving()) {
-            fabPos.move_To(next_x, next_y);
-          }
-          if(fabPos.isFinishedMoving()){
-            state = Wait;       // move to Wait
-            needleFlag = DOWN;  // set needleFlag to DOWN
-            i_needleDown++;
-            sendToPC(4);        // send to PC "MOVED" to indicate motors moved successfully to next point
-          }
-          break;
-        case Done:
-          sendToPC(5);          // send to PC that we're done; we would never get here
-          break;
-        case Estop:
-          sendToPC(6);          // send to PC that the system had to do an emergency stop
-          E_Stop = true;
-          break;
-      }
-    }
-    else{
-      while(true){
+    if(needleFlag && !allPoints){
+        positions[0] = long(buffer_points[points_e] * 7);
+        points_e += 1;
+        positions[1] = long(buffer_points[points_e] * 7);
+        points_e += 1;
         digitalWrite(ledPin, HIGH);
-        delay(1000);
+        steppers.moveTo(positions);
+        steppers.runSpeedToPosition(); // Blocks until all are in position
         digitalWrite(ledPin, LOW);
-        delay(200);
-      }
+
+        points_e = points_e % BUFFER_LENGTH;
+        Serial.print("<MOVED to ");
+        Serial.print(positions[0]);
+        Serial.print(", ");
+        Serial.print(positions[1]);
+        Serial.print(">");
+        FULL = false;
+        needleFlag = 0;
+
+        if(buffer_points[points_e] == -1000){
+            Serial.print("<DONE>");
+            allPoints = true;
+        }
     }
-  }
+    recvWithStartEndMarkers();
+    replyToPython();
+}
+
+void recvWithStartEndMarkers() {
+    static boolean recvInProgress = false;
+    static byte ndx = 0;
+    char startMarker = '<';
+    char endMarker = '>';
+    char rc;
+  
+    while (Serial.available() > 0 && newData == false) {
+        rc = Serial.read();
+        if (recvInProgress == true) {
+            if (rc != endMarker && readingX){   // read X
+                receivedCharsX[ndx] = rc;
+                ndx++;
+                if (ndx >= numChars) {
+                    ndx = numChars - 1;
+                }
+            }
+            else if(rc != endMarker){           // read y
+                receivedCharsY[ndx] = rc;
+                ndx++;
+                if (ndx >= numChars) {
+                    ndx = numChars - 1;
+                }
+            }
+            else {
+                receivedCharsY[ndx] = '\0';
+                recvInProgress = false;
+                ndx = 0;
+                newData = true;
+                readingX = true;
+            }
+            if(rc == ','){
+                receivedCharsX[ndx] = '\0';
+                readingX = false;
+                ndx = 0;
+            }
+        }
+        else if (rc == startMarker) {
+            recvInProgress = true;
+        }
+    }
+    x = atoi(receivedCharsX);
+    y = atoi(receivedCharsY);
+}
+
+void replyToPython() {
+    if (newData == true && !allPoints) {
+        Serial.print("<*-*This just in from PC: __");
+        Serial.print(receivedCharsX);
+        if(receivedCharsX[0] != 'S'){
+            buffer_points[points_a] = x;
+            points_a += 1;
+            buffer_points[points_a] = y;
+            points_a += 1;
+            points_a = points_a % BUFFER_LENGTH;
+            if(points_a == points_e){
+                FULL = true;
+            }
+            Serial.print(receivedCharsY);
+            Serial.print("__; (x,y):");
+            Serial.print(x);
+            Serial.print(",");
+            Serial.print(y);
+        }
+        else{
+            Serial.print("__;");          
+        }
+        Serial.print(", ");
+        Serial.print("points_a = ");
+        Serial.print(points_a);
+        Serial.print(", points_e = ");
+        Serial.print(points_e);
+        if(FULL){
+            Serial.print(", FULL_BUFFER");
+        }
+        else{
+            Serial.print(", NOT_FULL");
+        }
+        Serial.print(", len(buffer_points) = ");
+        Serial.print(ARRAY_SIZE(buffer_points));
+        Serial.print("\n\t");
+        for(int i = 0; i < ARRAY_SIZE(buffer_points); i ++){
+            if(i == points_a){
+                Serial.print("[");
+                Serial.print(buffer_points[i]);
+                Serial.print("], ");
+            }
+            else if(i == points_e){
+                Serial.print("(");
+                Serial.print(buffer_points[i]);
+                Serial.print("), ");
+            }
+            else{
+                Serial.print(buffer_points[i]);
+                Serial.print(", ");
+            }
+        }
+        Serial.print("\t*-*>");
+        newData = false;
+    }
 }
