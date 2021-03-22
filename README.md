@@ -12,6 +12,14 @@ Fabric_Positioner: contains an Arduino program with a defined class FabricPositi
 * Fabric_Positioner.ino
 
 Design_files: sample design files which users can use to test out embroidery.
-* Circle.csv
+* Design1.csv
+* Design2.csv
+* Design3.csv
+* Design4.csv
+* Design5.csv
+* Design6.csv
+* Design7.csv
+* PEmbroider_shape_hatching_1.gcode
+* PEmbroider_shape_hatching_2.gcode
 
 CAD (to-do): CAD files for the foot design, embroidery hoop, fabric-positioning system
