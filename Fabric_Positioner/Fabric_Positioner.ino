@@ -73,9 +73,9 @@ void setup() {
 
 void loop() {
     if(needleFlag && !allPoints){
-        positions[0] = long(buffer_points[points_e] * 7);
+        positions[0] = long(buffer_points[points_e] * 1);
         points_e += 1;
-        positions[1] = long(buffer_points[points_e] * 7);
+        positions[1] = long(buffer_points[points_e] * 1);
         points_e += 1;
         digitalWrite(ledPin, HIGH);
         steppers.moveTo(positions);
