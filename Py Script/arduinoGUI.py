@@ -4,6 +4,7 @@ import sys
 from progress.bar import IncrementalBar
 import pandas as pd
 import math
+import numpy as np
 import matplotlib as mpl
 import matplotlib.pyplot as plt
 import matplotlib.patches as patches
@@ -103,7 +104,21 @@ def extractAndPrep(DesignFile, width, length):
         print("Make sure file you are choosing is in either csv or GCODE format\n")
         raise FileNotFoundError("Design file must be in CSV or GCODE format")
 
-    ####### List for dynamic plot showing progress
+    ####### Rotate 45° based on motor configuration
+    theta = np.radians(45)
+    c,s = np.cos(theta), np.sin(theta)
+    R = np.array(((c, -s), (s,c)))
+    xplotoffset = min(xs)
+    yplotoffset = min(ys)
+    xplotdiff = max(xs) - min(xs)
+    yplotdiff = max(ys) - min(ys)
+    for i in range(0,len(xs)):
+        xandy = np.array([float(xs[i]), float(ys[i])])
+        P = np.matmul(R,xandy)
+        xs[i] = P[0]
+        ys[i] = P[1]
+        
+    ####### Offset points to be in center of hoop being used
     xoffset = min(xs)
     yoffset = min(ys)
     xdiff = max(xs) - min(xs)
@@ -113,7 +128,12 @@ def extractAndPrep(DesignFile, width, length):
         xs[i] = round(xs[i], 1) + width/2 - xdiff/2
         ys[i] -= yoffset
         ys[i] = round(ys[i], 1) + length/2 - ydiff/2
-        points[i] = [xs[i], ys[i]]
+        
+        xplot = points[i][0] - xplotoffset
+        xplot = round(xplot, 1) + width/2 - xplotdiff/2
+        yplot = points[i][1] - yplotoffset
+        yplot = round(yplot, 1) + length/2 - yplotdiff/2
+        points[i] = [xplot, yplot]
 
     points.append([-1,-1])
     xs.append(-1000)
@@ -138,30 +158,32 @@ def plotting(prep, movedReceived, width = 1, length = 1):
 
         x = []
         y = []
-        margin = 50
+        m = 50      # margin
         ax.plot(x, y, 'x', markersize=1)
         fig.show()
-        x.append(xs[0])
-        y.append(ys[0])
+        x.append(points[0][0])
+        y.append(points[0][1])
         ax.lines[0].set_data(x, y)
         outer = patches.FancyBboxPatch((0,0), width, length, boxstyle = "round,rounding_size=20",fc = "none", ec='black', label='Hoop')
-        outer2 = patches.FancyBboxPatch((-margin,-margin), width + 2*margin, length + 2*margin, boxstyle = "round,rounding_size=20",fc = "none", ec='black', label='Hoop')
-        rect = patches.Rectangle((margin, margin), width - 2*margin, length - 2*margin, linestyle='--', fc = "none", ec='red', label='Work area')
+        outer2 = patches.FancyBboxPatch((-m,-m), width + 2*m, length + 2*m, boxstyle = "round,rounding_size=20",fc = "none", ec='black', label='Hoop')
+        rect = patches.Rectangle((m, m), width - 2*m, length - 2*m, linestyle='--', fc = "none", ec='red', label='Work area')
         ax.add_patch(outer)
         ax.add_patch(outer2)
         ax.add_patch(rect)
         ax.plot(width/2, length/2, '+', markersize=50, color='g', alpha=0.3) # Add marker indicating center of work area
-        plot_margin = 100
-        ax.set_xlim([0 - plot_margin, width + plot_margin])
-        ax.set_ylim([0 - plot_margin, length + plot_margin])
+        pm = 100    # plot margin
+        ax.set_xlim([0 - pm, width + pm])
+        ax.set_ylim([0 - pm, length + pm])
         ax.grid(which = 'major', linestyle = '-', linewidth = '0.5', color = 'blue', alpha = 0.2)
         ax.grid(which = 'minor', linestyle = ':', linewidth = '0.5', color = 'black', alpha = 0.1)
         plt.axis('equal')
         plt.legend(handles=[rect,outer])
         fig.canvas.flush_events()
     else:
-        x.append(points[movedReceived][0])
-        y.append(points[movedReceived][1])
+        p0 = points[movedReceived][0]
+        p1 = points[movedReceived][1]
+        x.append(p0)
+        y.append(p1)
         ax.lines[0].set_data(x, y)
         ax.relim()
         ax.autoscale_view()
@@ -170,14 +192,14 @@ def plotting(prep, movedReceived, width = 1, length = 1):
 
 #========================
 # Define file to be used
-designFile = 'DesignFiles/GCode/PEmbroider_shape_hatching_1.gcode'
+designFile = 'DesignFiles/GCode/PEmbroider_shape_hatching_2.gcode'
 #designFile = 'DesignFiles/Design4.csv'   # 0000 is y
 
 # Define size of embroidery hoop in use in inches
 #100 steps --> 0.75 inches: CF of 0.0075
 #300 steps --> 2.375 inches:CF of 0.0079
-maxX = 13  # width of hoop   --> 633 (5 in.); result: 4.99 in.
-maxY = 5   # length of hoop  --> 380 (3 in.); result: 2.99 in.
+maxX = 7  # width of hoop   --> 633 (5 in.); result: 4.99 in.
+maxY = 7   # length of hoop  --> 380 (3 in.); result: 2.99 in.
 margin = 1
 conversionFactor = 0.0079   # 0.0079 inches/unit(aka step)
 X = math.ceil(maxX/conversionFactor)
@@ -273,6 +295,7 @@ else:
 
         ##### Send to the Arduino
         if (time.time() - prevTime > 0.01) and xs and not (arduinoReply == "XXX") and not FULL:
+            # HERE
             sendToArduino(str(xs[0]) + "," + str(ys[0]))
             prevTime = time.time()
             repliesReceived += 2
