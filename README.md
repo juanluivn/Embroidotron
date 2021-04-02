@@ -23,3 +23,9 @@ Design_files: sample design files which users can use to test out embroidery.
 * PEmbroider_shape_hatching_2.gcode
 
 CAD (to-do): CAD files for the foot design, embroidery hoop, fabric-positioning system
+
+## Manuals
+
+* Hardware Setup
+* Software Setup
+* 
