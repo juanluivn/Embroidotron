@@ -27,8 +27,9 @@ CAD (to-do): CAD files for the foot design, embroidery hoop, fabric-positioning 
 ## Manuals
 
 * [Hardware Setup](https://docs.google.com/document/d/1u8O5FfIDQrZK4XNUqN6Ey4WdjxN-YU7EthFN_TmKFy0/edit)
-* [https://docs.google.com/document/d/1u8O5FfIDQrZK4XNUqN6Ey4WdjxN-YU7EthFN_TmKFy0/edit](# Hardware Setup)
-* Software Setup
+* [Software Setup](https://docs.google.com/document/d/1oBZZrppJ--2_PCLH0jlOhzflVIZ38R-wljfqEDm74p8/edit#)
+* [Additional Links & Resources](https://docs.google.com/document/d/1s2lY7dWQqCa9B7jzgNtM8WDdGaP5C15nH3LHSJVUMSI/edit)
+* [Common Bugs](https://docs.google.com/document/d/1iVNW9NYsYxLzb2a6sSUqNkdm3q_a35NptM6QFSgCjsA/edit)
+* [Kit Documentation](https://docs.google.com/presentation/d/1qFfk796BDzd0hwD4qYG9szfRGYxhfNS5JNLvncwsWNw/edit#slide=id.gccc889e369_0_78)
+* [Kit Parts](https://docs.google.com/presentation/d/1AFwCzTrHNBDZm07XYTzMqGwMNFdh74nOnLxQnZI9olg/edit#slide=id.gcbb21051eb_0_89)
 
-
-[Go to Real Cool Heading section](#real-cool-heading)
