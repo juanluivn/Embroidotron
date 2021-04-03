@@ -63,8 +63,8 @@ void setup() {
     //    Motors
     stepper1 = AccelStepper(motorInterfaceType, xStepPin, xDirPin);
     stepper2 = AccelStepper(motorInterfaceType, yStepPin, yDirPin);
-    stepper1.setMaxSpeed(100);//800);
-    stepper2.setMaxSpeed(100);//800);
+    stepper1.setMaxSpeed(800);
+    stepper2.setMaxSpeed(800);
     steppers.addStepper(stepper1);
     steppers.addStepper(stepper2);
         
