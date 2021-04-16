@@ -105,7 +105,7 @@ def extractAndPrep(DesignFile, width, length):
         raise FileNotFoundError("Design file must be in CSV or GCODE format")
 
     ####### Rotate 45° based on motor configuration
-    theta = np.radians(45)
+    theta = np.radians(225)
     c,s = np.cos(theta), np.sin(theta)
     R = np.array(((c, -s), (s,c)))
     xplotoffset = min(xs)
@@ -192,26 +192,43 @@ def plotting(prep, movedReceived, width = 1, length = 1):
 
 #========================
 # Define file to be used
-designFile = 'DesignFiles/GCode/PEmbroider_shape_hatching_2.gcode'
+designFile = 'DesignFiles/GCode/PEmbroider_shape_hatching_1.gcode'
+#designFile = 'DesignFiles/GCode/HelloEmboidoTron4.gcode'
 #designFile = 'DesignFiles/Design4.csv'   # 0000 is y
 
 # Define size of embroidery hoop in use in inches
 #100 steps --> 0.75 inches: CF of 0.0075
 #300 steps --> 2.375 inches:CF of 0.0079
-maxX = 7  # width of hoop   --> 633 (5 in.); result: 4.99 in.
-maxY = 7   # length of hoop  --> 380 (3 in.); result: 2.99 in.
-margin = 1
+maxX = 13    # width of hoop   --> 633 (5 in.); result: 4.99 in.
+maxY = 8#5.5   # length of hoop  --> 380 (3 in.); result: 2.99 in.
+margin = 0.5
 conversionFactor = 0.0079   # 0.0079 inches/unit(aka step)
 X = math.ceil(maxX/conversionFactor)
 Y = math.ceil(maxY/conversionFactor)
+M = margin/conversionFactor
 
 # Extract and prepare the data from the specified design file
 global xs, ys, points
 xs, ys, points = extractAndPrep(designFile, X, Y)
 
+min_x = 10000
+max_x = 0
+min_y = 10000
+max_y = 0
+for i in points:
+    if(i[0] > 0):
+        if(i[0] < min_x):
+            min_x = i[0]
+        if(i[1] < min_y):
+            min_y = i[1]
+    if(i[0] > max_x):
+        max_x = i[0]
+    if(i[1] > max_y):
+        max_y = i[1]
+
 # Check if design is within bounds of the hoop
 print("\nChecking if design is within bounds of the hoop...")
-if(max(xs) < (X - margin) and max(ys) < (Y - margin)):
+if(max_x < (X - M) and max_y < (Y - M) and min_x > M and min_y > M):
     print("Design looks good! Proceeding with embroidery.\n")
     print("--------------------REMINDER--------------------")
     print("Remember to line up the needle at the (0,0) mark of the hoop, i.e. the bottom left position of the hoop.")
@@ -226,12 +243,16 @@ plottingOn = True
 visualizingMode = True
 if(plottingOn):
     plotting(True, 0, X, Y)
-    
+
+xx = int(xs[0])
+yy = int(ys[0])
+
 # Either choose to only visualize a design and see results or, when ready, run through the program and embroider
 repliesReceived = 0
 movedReceived = 0
 numPoints = len(points)
 if(visualizingMode):
+    print("\nDesign consists of %s points" % (numPoints - 1))
     while(True):
         if(movedReceived == numPoints):
             break
@@ -240,9 +261,8 @@ if(visualizingMode):
     time.sleep(5)
 else:
     # Add an additional point to give the motors a chance to get to the first point before starting the design
-    xs.insert(0, xs[0])
-    ys.insert(0, ys[0])
-    points.insert(0, points[0])
+    xs.insert(xx, xs[0])
+    ys.insert(yy, ys[0])
 
     # Setup communication
     setupSerial(115200, "/dev/tty.usbmodem14201")
