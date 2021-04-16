@@ -5,6 +5,7 @@ char receivedCharsY[numChars];
 boolean readingX = true;
 boolean newData = false;
 boolean allPoints = false;
+boolean setPosition = true;
 
 ////////////////         ---Buffer---   ////////////////////////
 #define ARRAY_SIZE(array) ((sizeof(array))/(sizeof(array[0])))
@@ -67,12 +68,32 @@ void setup() {
     stepper2.setMaxSpeed(800);
     steppers.addStepper(stepper1);
     steppers.addStepper(stepper2);
-        
+    
     Serial.println("<Arduino is ready>");
 }
 
 void loop() {
-    if(needleFlag && !allPoints){
+    if(needleFlag && setPosition){
+      setPosition = false;
+      positions[0] = long(buffer_points[points_e] * 1);
+      points_e += 1;
+      positions[1] = long(buffer_points[points_e] * 1);
+      points_e += 1;
+      digitalWrite(ledPin, HIGH);
+      stepper1.setCurrentPosition(positions[0]);
+      stepper2.setCurrentPosition(positions[1]);
+      digitalWrite(ledPin, LOW);
+
+      points_e = points_e % BUFFER_LENGTH;
+      Serial.print("<Set Position to ");
+      Serial.print(positions[0]);
+      Serial.print(", ");
+      Serial.print(positions[1]);
+      Serial.print(">");
+      FULL = false;
+      needleFlag = 0;
+    }
+    else if(needleFlag && !allPoints){
         positions[0] = long(buffer_points[points_e] * 1);
         points_e += 1;
         positions[1] = long(buffer_points[points_e] * 1);
