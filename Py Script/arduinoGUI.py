@@ -227,8 +227,7 @@ print("\nChecking if design is within bounds of the hoop...")
 if(max_x < (X - M) and max_y < (Y - M) and min_x > M and min_y > M):
     print("Design looks good! Proceeding with embroidery.\n")
     print("--------------------REMINDER--------------------")
-    print("Remember to line up the needle at the center of the hoop, i.e. the bottom left position of the hoop.")
-    print("Also, move the wheel manually for the first point to get the motors to move to the starting position.")
+    print("Remember to line up the needle at the center of the hoop.")
     print("------------------------------------------------")
 else:
     print("Design seems too big for the hoop in use and defined. Please either scale the design or change to a larger hoop.\n")
