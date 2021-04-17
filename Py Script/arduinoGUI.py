@@ -235,7 +235,7 @@ else:
     raise Exception
 
 # Turn on/off plotting feature
-plottingOn = True
+plottingOn = False
 visualizingMode = True
 if(plottingOn):
     plotting(True, 0, X, Y)
@@ -249,12 +249,13 @@ movedReceived = 0
 numPoints = len(points)
 if(visualizingMode):
     print("\nDesign consists of %s points" % (numPoints - 1))
-    while(True):
-        if(movedReceived == numPoints):
-            break
-        plotting(False, movedReceived)
-        movedReceived += 1
-    time.sleep(5)
+    if(plottingOn):
+        while(True):
+            if(movedReceived == numPoints):
+                break
+            plotting(False, movedReceived)
+            movedReceived += 1
+        time.sleep(5)
 else:
     # Add an additional point to give the motors a chance to get to the first point before starting the design
     xs.insert(xx, xs[0])
