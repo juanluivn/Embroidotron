@@ -193,14 +193,10 @@ def plotting(prep, movedReceived, width = 1, length = 1):
 #========================
 # Define file to be used
 designFile = 'DesignFiles/GCode/PEmbroider_shape_hatching_1.gcode'
-#designFile = 'DesignFiles/GCode/HelloEmboidoTron4.gcode'
-#designFile = 'DesignFiles/Design4.csv'   # 0000 is y
 
 # Define size of embroidery hoop in use in inches
-#100 steps --> 0.75 inches: CF of 0.0075
-#300 steps --> 2.375 inches:CF of 0.0079
-maxX = 13    # width of hoop   --> 633 (5 in.); result: 4.99 in.
-maxY = 8#5.5   # length of hoop  --> 380 (3 in.); result: 2.99 in.
+maxX = 13    # width of hoop in inches
+maxY = 5.5   # length of hoop in inches
 margin = 0.5
 conversionFactor = 0.0079   # 0.0079 inches/unit(aka step)
 X = math.ceil(maxX/conversionFactor)
